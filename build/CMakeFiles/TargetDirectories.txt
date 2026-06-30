@@ -1,4 +1,0 @@
-J:/Visual studio prog/ADB Driver for Android/build/CMakeFiles/ADBFileDriver_Win32.dir
-J:/Visual studio prog/ADB Driver for Android/build/CMakeFiles/ADBFileDriver_Win64.dir
-J:/Visual studio prog/ADB Driver for Android/build/CMakeFiles/ALL_BUILD.dir
-J:/Visual studio prog/ADB Driver for Android/build/CMakeFiles/ZERO_CHECK.dir

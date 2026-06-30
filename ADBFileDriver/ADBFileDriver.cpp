@@ -21,50 +21,6 @@
 // Вспомогательные функции
 // ============================================================
 
-// Преобразование wchar_t* в WCHAR_T* (для кроссплатформенности)
-static uint32_t ConvToShortWchar(WCHAR_T** dest, const wchar_t* source, uint32_t len = 0)
-{
-    if (!len)
-        len = (uint32_t)wcslen(source) + 1;
-
-    if (!*dest)
-        *dest = new WCHAR_T[len];
-
-    WCHAR_T* tmpShort = *dest;
-    const wchar_t* tmpWChar = source;
-    uint32_t res = 0;
-
-    memset(*dest, 0, len * sizeof(WCHAR_T));
-    for (; len; --len, ++res, ++tmpWChar, ++tmpShort) {
-        *tmpShort = (WCHAR_T)*tmpWChar;
-    }
-    return res;
-}
-
-// Преобразование WCHAR_T* в wchar_t* (для кроссплатформенности)
-static uint32_t ConvFromShortWchar(wchar_t** dest, const WCHAR_T* source, uint32_t len = 0)
-{
-    if (!len) {
-        uint32_t l = 0;
-        const WCHAR_T* tmp = source;
-        while (*tmp++) l++;
-        len = l + 1;
-    }
-
-    if (!*dest)
-        *dest = new wchar_t[len];
-
-    wchar_t* tmpWChar = *dest;
-    const WCHAR_T* tmpShort = source;
-    uint32_t res = 0;
-
-    memset(*dest, 0, len * sizeof(wchar_t));
-    for (; len; --len, ++res, ++tmpWChar, ++tmpShort) {
-        *tmpWChar = (wchar_t)*tmpShort;
-    }
-    return res;
-}
-
 // Преобразование wstring в UTF-8 string (для _popen)
 static std::string WideToUTF8String(const std::wstring& wstr)
 {
@@ -85,7 +41,7 @@ static std::string WideToUTF8String(const std::wstring& wstr)
 
 CADBFileDriver::CADBFileDriver()
     : m_pBackConn(nullptr), m_pMemMgr(nullptr), m_bInitialized(false)
-    , m_bConnected(false)
+    , m_bConnected(false), m_localeRU(true), m_bADBServerRunning(false)
 {
     // Инициализация статуса
     m_strStatus = L"Не подключено";
@@ -116,6 +72,13 @@ bool CADBFileDriver::Init(void* Interface)
     // Поиск adb.exe при инициализации
     FindADB();
 
+    // Запускаем adb сервер и проверяем состояние
+    if (!m_strADBPath.empty()) {
+        // adb start-server — гарантирует что daemon запущен
+        ExecuteADBCommand(L"start-server");
+        m_bADBServerRunning = CheckADBServer();
+    }
+
     return true;
 }
 
@@ -127,12 +90,13 @@ void CADBFileDriver::Done()
     m_bInitialized = false;
     m_pBackConn = nullptr;
     m_pMemMgr = nullptr;
+    m_bADBServerRunning = false;
 }
 
 long CADBFileDriver::GetInfo()
 {
-    // Версия 1.0.0 = 1000
-    return 1000;
+    // Версия 1.0.0.4 = 100004
+    return 100004;
 }
 
 bool CADBFileDriver::setMemManager(void* memManager)
@@ -142,6 +106,69 @@ bool CADBFileDriver::setMemManager(void* memManager)
 
     m_pMemMgr = static_cast<IMemoryManager*>(memManager);
     return true;
+}
+
+// ============================================================
+// Проверка состояния ADB сервера
+// ============================================================
+
+bool CADBFileDriver::CheckADBServer()
+{
+    if (m_strADBPath.empty())
+        return false;
+
+    // Выполняем adb version для проверки живости сервера
+    std::wstring fullCmd = m_strADBPath + L" version";
+    FILE* pipe = _popen(WideToUTF8String(fullCmd).c_str(), "r");
+    if (!pipe)
+        return false;
+
+    char buffer[1024];
+    bool success = false;
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        std::string line(buffer);
+        if (line.find("ADB") != std::string::npos || line.find("adb") != std::string::npos) {
+            success = true;
+            break;
+        }
+    }
+
+    _pclose(pipe);
+    return success;
+}
+
+// ============================================================
+// Выделение строки через m_pMemMgr (без утечек памяти)
+// ============================================================
+
+WCHAR_T* CADBFileDriver::allocWString(const wchar_t* source)
+{
+    if (!source) return nullptr;
+
+    size_t len = wcslen(source) + 1;
+    WCHAR_T* result = nullptr;
+
+    if (m_pMemMgr && m_pMemMgr->AllocMemory((void**)&result, (unsigned long)(len * sizeof(WCHAR_T)))) {
+        // Копируем символы по одному (для кроссплатформенности)
+        for (size_t i = 0; i < len; i++) {
+            result[i] = (WCHAR_T)source[i];
+        }
+        return result;
+    }
+
+    // Fallback: если m_pMemMgr недоступен — используем SysAllocString
+    return (WCHAR_T*)SysAllocString(source);
+}
+
+void CADBFileDriver::freeWString(WCHAR_T* str)
+{
+    if (!str) return;
+
+    if (m_pMemMgr) {
+        m_pMemMgr->FreeMemory((void**)&str);
+    } else {
+        SysFreeString((BSTR)str);
+    }
 }
 
 // ============================================================
@@ -164,7 +191,10 @@ void CADBFileDriver::setWStringToTVariant(tVariant* dest, const wchar_t* source)
     TV_VT(dest) = VTYPE_PWSTR;
 
     if (m_pMemMgr && m_pMemMgr->AllocMemory((void**)&dest->pwstrVal, (unsigned long)(len * sizeof(WCHAR_T)))) {
-        ConvToShortWchar(&dest->pwstrVal, source, (uint32_t)len);
+        // Копируем символы напрямую (без ConvToShortWchar)
+        for (size_t i = 0; i < len; i++) {
+            dest->pwstrVal[i] = (WCHAR_T)source[i];
+        }
         dest->wstrLen = (UINT)wcslen(source);
     } else {
         // Если не удалось выделить память — устанавливаем EMPTY
@@ -188,8 +218,16 @@ void CADBFileDriver::addError(uint32_t wcode, const wchar_t* source, const wchar
             m_pMemMgr->AllocMemory((void**)&errSource, (unsigned long)(srcLen * sizeof(WCHAR_T)));
             m_pMemMgr->AllocMemory((void**)&errDesc, (unsigned long)(descLen * sizeof(WCHAR_T)));
 
-            if (errSource) ConvToShortWchar(&errSource, source, (uint32_t)srcLen);
-            if (errDesc) ConvToShortWchar(&errDesc, descriptor, (uint32_t)descLen);
+            if (errSource) {
+                for (size_t i = 0; i < srcLen; i++) {
+                    errSource[i] = (WCHAR_T)source[i];
+                }
+            }
+            if (errDesc) {
+                for (size_t i = 0; i < descLen; i++) {
+                    errDesc[i] = (WCHAR_T)descriptor[i];
+                }
+            }
         } else {
             errSource = (WCHAR_T*)SysAllocString(source);
             errDesc = (WCHAR_T*)SysAllocString(descriptor);
@@ -375,7 +413,11 @@ bool CADBFileDriver::RegisterExtensionAs(WCHAR_T** wsExtName)
     if (m_pMemMgr) {
         size_t len = wcslen(EXTENSION_NAME) + 1;
         m_pMemMgr->AllocMemory((void**)wsExtName, (unsigned long)(len * sizeof(WCHAR_T)));
-        ConvToShortWchar(wsExtName, EXTENSION_NAME, (uint32_t)len);
+        if (*wsExtName) {
+            for (size_t i = 0; i < len; i++) {
+                (*wsExtName)[i] = (WCHAR_T)EXTENSION_NAME[i];
+            }
+        }
     } else {
         *wsExtName = SysAllocString(EXTENSION_NAME);
     }
@@ -388,35 +430,38 @@ bool CADBFileDriver::RegisterExtensionAs(WCHAR_T** wsExtName)
 
 static const wchar_t* g_PropNamesEN[] = {
     L"Status",
-    L"DeviceList"
+    L"DeviceList",
+    L"ADBServerState"
 };
 
 static const wchar_t* g_PropNamesRU[] = {
     L"СтатусПодключения",
-    L"СписокУстройств"
+    L"СписокУстройств",
+    L"СостояниеADBСервера"
 };
 
 long CADBFileDriver::GetNProps()
 {
-    return 2; // epLast = 2
+    return 3; // epLast = 3
 }
 
 long CADBFileDriver::FindProp(const WCHAR_T* wsPropName)
 {
     // Конвертируем WCHAR_T* в wchar_t* для сравнения
-    wchar_t* propName = nullptr;
-    ConvFromShortWchar(&propName, wsPropName);
+    size_t len = 0;
+    const WCHAR_T* tmp = wsPropName;
+    while (*tmp++) len++;
+    len++; // null-terminator
 
-    std::wstring wName(propName);
-    // Освобождаем память через m_pMemMgr если он доступен
-    if (m_pMemMgr) {
-        // ConvFromShortWchar выделяет через new, нужно освободить через delete
-        delete[] propName;
-    } else {
-        delete[] propName;
+    wchar_t* propName = new wchar_t[len];
+    for (size_t i = 0; i < len; i++) {
+        propName[i] = (wchar_t)wsPropName[i];
     }
 
-    for (int i = 0; i < 2; i++) {
+    std::wstring wName(propName);
+    delete[] propName;
+
+    for (int i = 0; i < 3; i++) {
         if (wcscmp(g_PropNamesEN[i], wName.c_str()) == 0) return i;
         if (wcscmp(g_PropNamesRU[i], wName.c_str()) == 0) return i;
     }
@@ -425,7 +470,7 @@ long CADBFileDriver::FindProp(const WCHAR_T* wsPropName)
 
 const WCHAR_T* CADBFileDriver::GetPropName(long lPropNum, long lPropAlias)
 {
-    if (lPropNum < 0 || lPropNum > 1)
+    if (lPropNum < 0 || lPropNum > 2)
         return nullptr;
 
     const wchar_t* currentName = nullptr;
@@ -435,11 +480,8 @@ const WCHAR_T* CADBFileDriver::GetPropName(long lPropNum, long lPropAlias)
         currentName = g_PropNamesRU[lPropNum];
     }
 
-    WCHAR_T* result = nullptr;
-    size_t len = wcslen(currentName) + 1;
-    if (m_pMemMgr && m_pMemMgr->AllocMemory((void**)&result, (unsigned long)(len * sizeof(WCHAR_T)))) {
-        ConvToShortWchar(&result, currentName, (uint32_t)len);
-    }
+    // Выделяем память через m_pMemMgr (без утечек)
+    WCHAR_T* result = allocWString(currentName);
     return result;
 }
 
@@ -447,11 +489,18 @@ bool CADBFileDriver::GetPropVal(const long lPropNum, tVariant* pvarPropVal)
 {
     if (!pvarPropVal) return false;
 
+    // Обновляем состояние ADB сервера при каждом чтении
+    if (!m_strADBPath.empty()) {
+        m_bADBServerRunning = CheckADBServer();
+    }
+
     switch (lPropNum) {
         case 0: // СтатусПодключения
             return GetProp_Status(pvarPropVal);
         case 1: // СписокУстройств
             return GetProp_DeviceList(pvarPropVal);
+        case 2: // СостояниеADBСервера
+            return GetProp_ADBServerState(pvarPropVal);
         default:
             TV_VT(pvarPropVal) = VTYPE_EMPTY;
             return false;
@@ -468,7 +517,7 @@ bool CADBFileDriver::SetPropVal(const long lPropNum, tVariant* pvarPropVal)
 
 bool CADBFileDriver::IsPropReadable(const long lPropNum)
 {
-    return lPropNum >= 0 && lPropNum <= 1;
+    return lPropNum >= 0 && lPropNum <= 2;
 }
 
 bool CADBFileDriver::IsPropWritable(const long lPropNum)
@@ -488,6 +537,12 @@ bool CADBFileDriver::GetProp_Status(tVariant* pvarPropVal)
 
 bool CADBFileDriver::GetProp_DeviceList(tVariant* pvarPropVal)
 {
+    // Если ADB сервер не запущен — возвращаем пустой массив
+    if (!m_bADBServerRunning) {
+        setWStringToTVariant(pvarPropVal, L"[]");
+        return true;
+    }
+
     std::string jsonStr = GetDevicesJSON();
 
     // Конвертируем UTF-8 в wchar_t
@@ -504,18 +559,51 @@ bool CADBFileDriver::GetProp_DeviceList(tVariant* pvarPropVal)
     return true;
 }
 
+bool CADBFileDriver::GetProp_ADBServerState(tVariant* pvarPropVal)
+{
+    // Обновляем состояние
+    if (!m_strADBPath.empty()) {
+        m_bADBServerRunning = CheckADBServer();
+    }
+
+    TV_VT(pvarPropVal) = VTYPE_BOOL;
+    TV_BOOL(pvarPropVal) = m_bADBServerRunning ? VARIANT_TRUE : VARIANT_FALSE;
+    return true;
+}
+
 // ============================================================
 // Получение списка устройств в JSON
 // ============================================================
 
 std::string CADBFileDriver::GetDevicesJSON()
 {
-    // Выполняем adb devices
+    // Сначала пробуем adb devices -l (с деталями)
     std::wstring resultW = ExecuteADBCommand(L"devices -l");
-    // Конвертируем wstring в UTF-8 string
+
+    // Конвертируем wstring в UTF-8 string для парсинга
     int utf8Size = WideCharToMultiByte(CP_UTF8, 0, resultW.c_str(), (int)resultW.size(), NULL, 0, NULL, NULL);
     std::string result(utf8Size, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, resultW.c_str(), (int)resultW.size(), &result[0], utf8Size, NULL, NULL);
+    if (utf8Size > 0) {
+        WideCharToMultiByte(CP_UTF8, 0, resultW.c_str(), (int)resultW.size(), &result[0], utf8Size, NULL, NULL);
+    }
+
+    // Если devices -l вернул пустой результат — пробуем просто adb devices
+    if (result.empty() || result.find("device") == std::string::npos) {
+        resultW = ExecuteADBCommand(L"devices");
+        utf8Size = WideCharToMultiByte(CP_UTF8, 0, resultW.c_str(), (int)resultW.size(), NULL, 0, NULL, NULL);
+        if (utf8Size > 0) {
+            std::string result2(utf8Size, '\0');
+            WideCharToMultiByte(CP_UTF8, 0, resultW.c_str(), (int)resultW.size(), &result2[0], utf8Size, NULL, NULL);
+            if (!result2.empty()) {
+                result = result2;
+            }
+        }
+    }
+
+    // Если всё ещё пусто — возвращаем пустой массив
+    if (result.empty()) {
+        return "[]";
+    }
 
     std::string json = "[\n";
     bool first = true;
@@ -524,24 +612,40 @@ std::string CADBFileDriver::GetDevicesJSON()
     std::istringstream stream(result);
     std::string line;
     while (std::getline(stream, line)) {
-        // Пропускаем заголовок и пустые строки
-        if (line.find("device") == std::string::npos &&
-            line.find("offline") == std::string::npos &&
-            line.find("unauthorized") == std::string::npos) {
+        // Пропускаем заголовок (List of devices attached) и пустые строки
+        if (line.find("List of devices") != std::string::npos || line.empty()) {
             continue;
         }
 
-        // Формат: <serial>\t<status>\t<extra>
+        // Ищем статус устройства
+        std::string status = "";
+        size_t tabPos = line.find('\t');
+        if (tabPos != std::string::npos) {
+            status = line.substr(tabPos + 1);
+        } else {
+            // Формат без табуляции: serial\tstatus
+            continue; // Неизвестный формат
+        }
+
+        // Проверяем статус
+        bool isDevice = (status.find("device") != std::string::npos);
+        bool isOffline = (status.find("offline") != std::string::npos);
+        bool isUnauthorized = (status.find("unauthorized") != std::string::npos);
+
+        // Включаем все устройства: device, offline, unauthorized
+        if (!isDevice && !isOffline && !isUnauthorized) {
+            continue;
+        }
+
+        // Получаем serial (первая часть до табуляции)
         size_t tab1 = line.find('\t');
         if (tab1 == std::string::npos) continue;
-
         std::string serial = line.substr(0, tab1);
-        size_t tab2 = line.find('\t', tab1 + 1);
-        std::string status = (tab2 != std::string::npos) ? line.substr(tab1 + 1, tab2 - tab1 - 1) : "device";
+
+        // Получаем модель если есть
         std::string model = "";
-        if (tab2 != std::string::npos) {
-            // Ищем "model:XXX"
-            std::string extra = line.substr(tab2 + 1);
+        if (tab1 + 1 < line.size()) {
+            std::string extra = line.substr(tab1 + 1);
             size_t modelPos = extra.find("model:");
             if (modelPos != std::string::npos) {
                 model = extra.substr(modelPos + 6);
@@ -563,13 +667,12 @@ std::string CADBFileDriver::GetDevicesJSON()
         };
 
         std::string escSerial = escapeJSON(serial);
-        std::string escStatus = escapeJSON(status);
         std::string escModel = escapeJSON(model);
 
         if (!first) json += ",\n";
         first = false;
 
-        json += "  {\"Serial\": \"" + escSerial + "\", \"Status\": \"" + escStatus + "\"";
+        json += "  {\"Serial\": \"" + escSerial + "\", \"Status\": \"" + status + "\"";
         if (!escModel.empty()) {
             json += ", \"Model\": \"" + escModel + "\"";
         }
@@ -608,11 +711,17 @@ long CADBFileDriver::GetNMethods()
 long CADBFileDriver::FindMethod(const WCHAR_T* wsMethodName)
 {
     // Конвертируем WCHAR_T* в wchar_t* для сравнения
-    wchar_t* methodName = nullptr;
-    ConvFromShortWchar(&methodName, wsMethodName);
+    size_t len = 0;
+    const WCHAR_T* tmp = wsMethodName;
+    while (*tmp++) len++;
+    len++; // null-terminator
+
+    wchar_t* methodName = new wchar_t[len];
+    for (size_t i = 0; i < len; i++) {
+        methodName[i] = (wchar_t)wsMethodName[i];
+    }
 
     std::wstring wName(methodName);
-    // Освобождаем память — ConvFromShortWchar использует new
     delete[] methodName;
 
     for (int i = 0; i < 5; i++) {
@@ -629,11 +738,8 @@ const WCHAR_T* CADBFileDriver::GetMethodName(const long lMethodNum, const long l
 
     const wchar_t* currentName = (lMethodAlias == 0) ? g_MethodNamesEN[lMethodNum] : g_MethodNamesRU[lMethodNum];
 
-    WCHAR_T* result = nullptr;
-    size_t len = wcslen(currentName) + 1;
-    if (m_pMemMgr && m_pMemMgr->AllocMemory((void**)&result, (unsigned long)(len * sizeof(WCHAR_T)))) {
-        ConvToShortWchar(&result, currentName, (uint32_t)len);
-    }
+    // Выделяем память через m_pMemMgr (без утечек)
+    WCHAR_T* result = allocWString(currentName);
     return result;
 }
 
@@ -789,8 +895,15 @@ bool CADBFileDriver::Method_PushFile(tVariant* pvarRetValue, tVariant* paParams,
         std::wstring srcPath, dstPath;
 
         if (TV_VT(paParams) == VTYPE_PWSTR) {
-            wchar_t* tmpPath = nullptr;
-            ConvFromShortWchar(&tmpPath, TV_WSTR(paParams));
+            // Конвертируем WCHAR_T* в wchar_t* без утечек
+            size_t len = 0;
+            const WCHAR_T* tmp = TV_WSTR(paParams);
+            while (*tmp++) len++;
+
+            wchar_t* tmpPath = new wchar_t[len + 1];
+            for (size_t i = 0; i < len + 1; i++) {
+                tmpPath[i] = (wchar_t)TV_WSTR(paParams)[i];
+            }
             srcPath = tmpPath;
             delete[] tmpPath;
         } else {
@@ -801,8 +914,14 @@ bool CADBFileDriver::Method_PushFile(tVariant* pvarRetValue, tVariant* paParams,
         }
 
         if (TV_VT(&paParams[1]) == VTYPE_PWSTR) {
-            wchar_t* tmpPath = nullptr;
-            ConvFromShortWchar(&tmpPath, TV_WSTR(&paParams[1]));
+            size_t len = 0;
+            const WCHAR_T* tmp = TV_WSTR(&paParams[1]);
+            while (*tmp++) len++;
+
+            wchar_t* tmpPath = new wchar_t[len + 1];
+            for (size_t i = 0; i < len + 1; i++) {
+                tmpPath[i] = (wchar_t)TV_WSTR(&paParams[1])[i];
+            }
             dstPath = tmpPath;
             delete[] tmpPath;
         } else {
@@ -874,8 +993,15 @@ bool CADBFileDriver::Method_PullText(tVariant* pvarRetValue, tVariant* paParams,
         // Получаем путь на телефоне
         std::wstring srcPath;
         if (TV_VT(paParams) == VTYPE_PWSTR) {
-            wchar_t* tmpPath = nullptr;
-            ConvFromShortWchar(&tmpPath, TV_WSTR(paParams));
+            // Конвертируем WCHAR_T* в wchar_t* без утечек
+            size_t len = 0;
+            const WCHAR_T* tmp = TV_WSTR(paParams);
+            while (*tmp++) len++;
+
+            wchar_t* tmpPath = new wchar_t[len + 1];
+            for (size_t i = 0; i < len + 1; i++) {
+                tmpPath[i] = (wchar_t)TV_WSTR(paParams)[i];
+            }
             srcPath = tmpPath;
             delete[] tmpPath;
         } else {
@@ -1046,22 +1172,37 @@ bool CADBFileDriver::CallAsFunc(const long lMethodNum, tVariant* pvarRetValue, t
 
 void CADBFileDriver::SetLocale(const WCHAR_T* loc)
 {
-    // TODO: реализовать смену локали
-    (void)loc;
+    if (!loc) {
+        m_localeRU = true; // По умолчанию — русский
+        return;
+    }
+
+    // Конвертируем WCHAR_T* в wchar_t* для сравнения
+    size_t len = 0;
+    const WCHAR_T* tmp = loc;
+    while (*tmp++) len++;
+
+    wchar_t* localeStr = new wchar_t[len + 1];
+    for (size_t i = 0; i < len + 1; i++) {
+        localeStr[i] = (wchar_t)loc[i];
+    }
+
+    // Проверяем на русский язык
+    std::wstring wLoc(localeStr);
+    m_localeRU = (wLoc.find(L"ru") != std::wstring::npos);
+
+    delete[] localeStr;
+
+    // Обновляем статус
+    if (m_localeRU) {
+        m_strStatus = L"Не подключено";
+    } else {
+        m_strStatus = L"Not connected";
+    }
 }
 
 // ============================================================
 // Экспортируемые функции DLL
-// ============================================================
-
-// ============================================================
-// Экспортируемые функции DLL (реализация)
-// Сигнатуры соответствуют объявленным в ComponentBase.h
-// ============================================================
-
-// ============================================================
-// Экспорт функций для 1С:Предприятие
-// Реализация экспортируемых функций (экспорт через DEF-файл)
 // ============================================================
 
 extern "C" {
@@ -1069,15 +1210,12 @@ extern "C" {
 const WCHAR_T* GetClassNames()
 {
     /* 1С ожидает список имён классов, разделённых \0, с двойным \0 в конце */
-    /* КРИТИЧНО: Двойной \0 в конце обязателен! 1С парсит строки до двойного \0. */
-    static WCHAR_T names[] = { L'A', L'D', L'B', L'F', L'i', L'l', L'e', L'D', L'r', L'i', L'v', L'e', L'r', L'\0', L'\0' };
+    static WCHAR_T names[] = { L'A', L'D', L'B', L'F', L'i', L'l', L'e', L'D', L'r', L'i', L'v', L'e', L'r', L'e', L'r', L'\0', L'\0' };
     return names;
 }
 
 long GetClassObject(const WCHAR_T* clsName, IComponentBase** pIntf)
 {
-    // Рабочий паттерн: НЕ проверяем имя класса, просто проверяем pIntf
-    // Это соответствует рабочему проекту innNative
     if (!*pIntf) {
         *pIntf = new CADBFileDriver();
         return *pIntf ? 1 : 0;

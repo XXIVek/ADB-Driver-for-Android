@@ -10,7 +10,7 @@
 #define EXTENSION_NAME L"ADBFileDriver"
 
 // Версия компоненты
-#define COMPONENT_VERSION L"1.0.0"
+#define COMPONENT_VERSION L"1.0.0.4"
 
 // Структура устройства ADB
 struct ADBDevice {
@@ -29,11 +29,15 @@ private:
     IMemoryManager* m_pMemMgr;        // Менеджер памяти 1С
     bool m_bInitialized;               // Инициализирована ли компонента
 
+    // Locale — поддержка локализации
+    bool m_localeRU;                   // true = русский, false = английский
+
     // ADB-данные
     std::wstring m_strADBPath;         // Путь к adb.exe
     std::wstring m_strStatus;          // Текущий статус подключения
     std::wstring m_connectedDevice;    // Подключённое устройство (серийный номер)
     bool m_bConnected;                 // Подключено ли к устройству
+    bool m_bADBServerRunning;          // true = ADB сервер запущен, false = не запущен
 
 public:
     // =====================================================
@@ -45,12 +49,16 @@ public:
     void setWStringToTVariant(tVariant* dest, const wchar_t* source);
     void addError(uint32_t wcode, const wchar_t* source, const wchar_t* descriptor, long code);
     bool FindADB();
+    bool CheckADBServer();
     std::wstring ExecuteADBCommand(const std::wstring& cmd);
     std::wstring ExecuteADBCommandToDevice(const std::wstring& cmd);
-    // WideToAnsi удалена — не используется. Оставлена для обратной совместимости.
-    // Если нужна — реализуйте как WideToUTF8String.
     std::string GetDevicesJSON();
     bool UpdateStatus(const std::wstring& status);
+
+    // Выделение строки через m_pMemMgr (без утечек)
+    WCHAR_T* allocWString(const wchar_t* source);
+    // Освобождение строки через m_pMemMgr (без утечек)
+    void freeWString(WCHAR_T* str);
 
     // Поиск свойств/методов (вспомогательный)
     long findName(const wchar_t* names[], const wchar_t* name, const uint32_t size) const;
@@ -83,7 +91,7 @@ public:
     // =====================================================
     virtual long ADDIN_API GetNMethods() override;
     virtual long ADDIN_API FindMethod(const WCHAR_T* wsMethodName) override;
-    virtual const WCHAR_T* ADDIN_API GetMethodName(const long lMethodNum, const long lMethodAlias) override;
+    virtual const WCHAR_T* ADDIN_API GetMethodName(const long lMethodNum, long lMethodAlias) override;
     virtual long ADDIN_API GetNParams(const long lMethodNum) override;
     virtual bool ADDIN_API GetParamDefValue(const long lMethodNum, const long lParamNum, tVariant* pvarParamDefValue) override;
     virtual bool ADDIN_API HasRetVal(const long lMethodNum) override;
@@ -100,6 +108,7 @@ public:
     // =====================================================
     bool GetProp_Status(tVariant* pvarPropVal);
     bool GetProp_DeviceList(tVariant* pvarPropVal);
+    bool GetProp_ADBServerState(tVariant* pvarPropVal);
 
     // =====================================================
     // Реализация методов
@@ -110,9 +119,3 @@ public:
     bool Method_PullText(tVariant* pvarRetValue, tVariant* paParams, long lSizeArray);
     bool Method_GetDeviceList(tVariant* pvarRetValue, tVariant* paParams, long lSizeArray);
 };
-
-// ============================================================
-// Экспортируемые функции DLL (реализация в .cpp)
-// ============================================================
-// Примечание: сигнатуры этих функций определены в ComponentBase.h
-// Здесь они экспортируются через extern "C"
