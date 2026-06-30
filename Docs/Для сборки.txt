@@ -1,0 +1,62 @@
+# Инструкция по сборке ADBFileDriver
+
+## Требования
+- CMake 3.10+
+- Microsoft Visual Studio (MSVC)
+- Файлы ADB в папке adb/ (из UniversalAdbDriver)
+
+## Структура проекта
+```
+ADB Driver for Android/
+├── ADBFileDriver/          — исходный код компоненты
+│   ├── ADBFileDriver.cpp   — основная реализация
+│   ├── ADBFileDriver.h     — заголовочный файл
+│   ├── ADBFileDriver.def   — файл экспорта символов
+│   ├── AdbWinHelper.h      — обертка над AdbWinApi.dll
+│   ├── AdbWinHelper.cpp    — реализация обертки
+│   └── CMakeLists.txt      — скрипт сборки модуля
+├── adb/                    — файлы ADB из UniversalAdbDriver
+│   ├── adb.exe
+│   ├── AdbWinApi.dll
+│   ├── AdbWinUsbApi.dll
+│   └── usb_driver/         — USB-драйверы для Android
+├── include/                — заголовочные файлы 1С
+├── CMakeLists.txt          — корневой скрипт сборки
+└── Docs/                   — документация
+```
+
+## Сборка
+```powershell
+# Через MSBuild
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" "build\ALL_BUILD.vcxproj" /p:Configuration=Release
+
+# Или через VS Code: Ctrl+Shift+P → CMake: Build
+```
+
+## Результат сборки
+- `1C\Release\Win32\ADBFileDriver_Win32.dll` — для arch="i386"
+- `1C\Release\Win64\ADBFileDriver_Win64.dll` — для arch="x86_64"
+
+## Файлы для дистрибутива
+```
+Дистрибутив/
+├── ADBFileDriver_Win64.dll   — компонента для 1С
+├── AdbWinApi.dll             — Windows API для ADB
+├── adb.exe                    — Android Debug Bridge
+└── usb_driver/                — USB-драйверы (опционально)
+```
+
+## Архитектура
+- **AdbWinHelper** — обертка над AdbWinApi.dll для перечисления USB-устройств
+- **ADBFileDriver** — основная компонента, использует adb.exe для push/pull
+- **adb.exe** — исполняемый файл Android Debug Bridge
+
+## Установка USB-драйверов
+Для работы с Android-устройствами необходимо установить USB-драйверы:
+1. Запустить `usb_driver\android_winusb.inf` как "Установить"
+2. Или использовать UniversalAdbDriver установщик
+
+## История изменений
+- 28.06.2026 — Исправлен путь к ADBFileDriver.def в CMakeLists.txt
+- 28.06.2026 — Добавлена интеграция UniversalAdbDriver
+- 28.06.2026 — Создан модуль AdbWinHelper для работы с AdbWinApi.dll

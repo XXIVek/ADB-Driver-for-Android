@@ -4,6 +4,7 @@
 // ============================================================
 
 #include "ADBFileDriver.h"
+#include "AdbWinHelper.h"
 #include <windows.h>
 #include <wchar.h>
 #include <stdio.h>
@@ -705,7 +706,7 @@ bool CADBFileDriver::Method_Connect(tVariant* pvarRetValue, tVariant* paParams, 
                     m_bConnected = true;
                     UpdateStatus(L"Подключено: " + m_connectedDevice);
                     TV_VT(pvarRetValue) = VTYPE_BOOL;
-                    TV_BOOL(pvarRetValue) = VARIANT_TRUE;
+                    TV_BOOL(pvarRetValue) = (VARIANT_BOOL)VARIANT_TRUE;
                     return true;
                 }
             }
@@ -714,7 +715,7 @@ bool CADBFileDriver::Method_Connect(tVariant* pvarRetValue, tVariant* paParams, 
         // Устройств со статусом "device" не найдено
         UpdateStatus(L"Нет подключенных устройств");
         TV_VT(pvarRetValue) = VTYPE_BOOL;
-        TV_BOOL(pvarRetValue) = VARIANT_FALSE;
+        TV_BOOL(pvarRetValue) = (VARIANT_BOOL)VARIANT_FALSE;
         return true;
 
     } catch (const std::exception& e) {
@@ -742,7 +743,7 @@ bool CADBFileDriver::Method_Disconnect(tVariant* pvarRetValue, tVariant* paParam
         if (!m_bConnected) {
             UpdateStatus(L"Устройство уже отключено");
             TV_VT(pvarRetValue) = VTYPE_BOOL;
-            TV_BOOL(pvarRetValue) = VARIANT_TRUE;
+            TV_BOOL(pvarRetValue) = (VARIANT_BOOL)VARIANT_TRUE;
             return true;
         }
 
@@ -751,7 +752,7 @@ bool CADBFileDriver::Method_Disconnect(tVariant* pvarRetValue, tVariant* paParam
         UpdateStatus(L"Не подключено");
 
         TV_VT(pvarRetValue) = VTYPE_BOOL;
-        TV_BOOL(pvarRetValue) = VARIANT_TRUE;
+        TV_BOOL(pvarRetValue) = (VARIANT_BOOL)VARIANT_TRUE;
         return true;
 
     } catch (...) {
@@ -821,7 +822,7 @@ bool CADBFileDriver::Method_PushFile(tVariant* pvarRetValue, tVariant* paParams,
             resultLowerW.find(L"success") != std::string::npos) {
             UpdateStatus(L"Файл выгружен: " + dstPath);
             TV_VT(pvarRetValue) = VTYPE_BOOL;
-            TV_BOOL(pvarRetValue) = VARIANT_TRUE;
+            TV_BOOL(pvarRetValue) = (VARIANT_BOOL)VARIANT_TRUE;
             return true;
         } else {
             std::wstring err = L"Ошибка push: " + resultW;
@@ -902,8 +903,8 @@ bool CADBFileDriver::Method_PullText(tVariant* pvarRetValue, tVariant* paParams,
         if (resultLowerW.find(L"1 file pulled") != std::string::npos ||
             resultLowerW.find(L"success") != std::string::npos) {
             // Читаем временный файл
-            FILE* f = _wfopen(tempPath, L"rb");
-            if (f) {
+            FILE* f = nullptr;
+            if (_wfopen_s(&f, tempPath, L"rb") == 0 && f != nullptr) {
                 fseek(f, 0, SEEK_END);
                 long fileSize = ftell(f);
                 fseek(f, 0, SEEK_SET);

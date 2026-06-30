@@ -130,6 +130,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <ImportLibrary>J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/Debug/ADBFileDriver_Win32.lib</ImportLibrary>
+      <ModuleDefinitionFile>J:/Visual studio prog/ADB Driver for Android/ADBFileDriver/ADBFileDriver.def</ModuleDefinitionFile>
       <ProgramDataBaseFile>J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/Debug/ADBFileDriver_Win32.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
@@ -179,6 +180,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <ImportLibrary>J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/Release/ADBFileDriver_Win32.lib</ImportLibrary>
+      <ModuleDefinitionFile>J:/Visual studio prog/ADB Driver for Android/ADBFileDriver/ADBFileDriver.def</ModuleDefinitionFile>
       <ProgramDataBaseFile>J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/Release/ADBFileDriver_Win32.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
@@ -228,6 +230,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <ImportLibrary>J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/MinSizeRel/ADBFileDriver_Win32.lib</ImportLibrary>
+      <ModuleDefinitionFile>J:/Visual studio prog/ADB Driver for Android/ADBFileDriver/ADBFileDriver.def</ModuleDefinitionFile>
       <ProgramDataBaseFile>J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/MinSizeRel/ADBFileDriver_Win32.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
@@ -276,6 +279,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <ImportLibrary>J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/RelWithDebInfo/ADBFileDriver_Win32.lib</ImportLibrary>
+      <ModuleDefinitionFile>J:/Visual studio prog/ADB Driver for Android/ADBFileDriver/ADBFileDriver.def</ModuleDefinitionFile>
       <ProgramDataBaseFile>J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/RelWithDebInfo/ADBFileDriver_Win32.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
@@ -343,6 +347,9 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   <ItemGroup>
     <ClCompile Include="J:\Visual studio prog\ADB Driver for Android\ADBFileDriver\ADBFileDriver.cpp" />
     <ClInclude Include="J:\Visual studio prog\ADB Driver for Android\ADBFileDriver\ADBFileDriver.h" />
+    <ClCompile Include="J:\Visual studio prog\ADB Driver for Android\ADBFileDriver\AdbWinHelper.cpp" />
+    <ClInclude Include="J:\Visual studio prog\ADB Driver for Android\ADBFileDriver\AdbWinHelper.h" />
+    <None Include="J:\Visual studio prog\ADB Driver for Android\ADBFileDriver\ADBFileDriver.def" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>

@@ -1,0 +1,11 @@
+================================================================================
+Linker Errors
+Generated: 2026-06-28T21:03:32.019Z
+Total Errors: 2
+================================================================================
+
+[LNK4070] (MSVC)
+директива /OUT:ADBFileDriver.dll в .EXP отличается от имени выходного файла "J:\Visual studio prog\ADB Driver for Android\1C\Release\Win64\Release\ADBFileDriver_Win64.dll"; директива игнорируется [J:\Visual studio prog\ADB Driver for Android\build\ADBFileDriver_Win64.vcxproj]
+
+[LNK4070] (MSVC)
+директива /OUT:ADBFileDriver.dll в .EXP отличается от имени выходного файла "J:\Visual studio prog\ADB Driver for Android\1C\Release\Win32\Release\ADBFileDriver_Win32.dll"; директива игнорируется [J:\Visual studio prog\ADB Driver for Android\build\ADBFileDriver_Win32.vcxproj]

@@ -4,14 +4,25 @@
     <ClCompile Include="J:\Visual studio prog\ADB Driver for Android\ADBFileDriver\ADBFileDriver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="J:\Visual studio prog\ADB Driver for Android\ADBFileDriver\AdbWinHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="J:\Visual studio prog\ADB Driver for Android\ADBFileDriver\ADBFileDriver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="J:\Visual studio prog\ADB Driver for Android\ADBFileDriver\AdbWinHelper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="J:\Visual studio prog\ADB Driver for Android\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="J:\Visual studio prog\ADB Driver for Android\ADBFileDriver\ADBFileDriver.def">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">

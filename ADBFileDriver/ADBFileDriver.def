@@ -1,10 +1,6 @@
-; ADBFileDriver.def -- Module definition file for Windows DLL
-; Export symbols for 1C:Enterprise 8.3 Native API
-
 LIBRARY ADBFileDriver
 EXPORTS
-    GetClassNames       @1
-    GetClassObject      @2
-    DestroyObject       @3
+    GetClassNames @1
+    GetClassObject @2
+    DestroyObject @3
     SetPlatformCapabilities @4
-    ; GetAttachType       @5  — не реализована, закомментирована

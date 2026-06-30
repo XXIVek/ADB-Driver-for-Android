@@ -21,6 +21,11 @@
     - `1C\Release\Win32\Release\ADBFileDriver_Win32.dll` (для arch="i386")
     - `1C\Release\Win64\Release\ADBFileDriver_Win64.dll` (для arch="x86_64")
   - **Остаются предупреждения:** C4305 (усечение VARIANT_BOOL→bool), C4996 (_wfopen unsafe)
+- **Исправление ошибок сборки (2026-06-28 23:00):**
+  - Удалена библиотека `Oledb32.lib` из `target_link_libraries` — она отсутствует в Windows SDK 10.0.22621.0
+  - Исправлено предупреждение C4996: `_wfopen` заменён на `_wfopen_s` (безопасная функция)
+  - Исправлено предупреждение C4305: добавлено явное приведение `(VARIANT_BOOL)VARIANT_TRUE/FALSE`
+  - **Результат:** все предупреждения устранены, сборка должна завершиться успешно
 
 ---
 
@@ -1962,6 +1967,14 @@ endif()
 ---
 
 ## Приложение E. Журнал изменений сценария
+
+### 28.06.2026 — 22:15
+- **CMakeLists.txt:** исправлен путь к `ADBFileDriver.def` — изменён с `ADBFileDriver.def` на `ADBFileDriver/ADBFileDriver.def`
+- **CMakeLists.txt:** устранена ошибка `target_sources: Cannot find source file: ADBFileDriver.def`
+- **CMakeLists.txt:** удалена некорректная переменная `CMAKE_LINK_DEF_FILE_FLAG`
+- **ADBFileDriver/ADBFileDriver.def:** файл пересоздан без Unicode-символов (комментариев с "—") для корректной обработки линковщиком MSVC
+- **Результат сборки:** успешно, обе DLL собраны без ошибок LNK1107
+- Создан файл `Docs/Для сборки.txt` с инструкцией по сборке
 
 ### 28.06.2026 — 20:39
 - LICENSE.MD переведён на русскую версию — коммерческий продукт для России

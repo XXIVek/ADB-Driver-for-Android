@@ -16,15 +16,16 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 set(ADBFileDriver_SRC
     ADBFileDriver/ADBFileDriver.cpp
     ADBFileDriver/ADBFileDriver.h
+    ADBFileDriver/AdbWinHelper.cpp
+    ADBFileDriver/AdbWinHelper.h
 )
 
 # Definition file for exports (Windows)
-set(ADBFileDriver_DEF ADBFileDriver.def)
+set(ADBFileDriver_DEF ADBFileDriver/ADBFileDriver.def)
 
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${CMAKE_SOURCE_DIR})
 
 if (WIN32)
-    set(CMAKE_LINK_DEF_FILE_FLAG ADBFileDriver.def)
     add_definitions(-DUNICODE -DWIN32 -D_AFXDLL)
 endif()
 
