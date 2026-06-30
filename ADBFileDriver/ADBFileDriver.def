@@ -1,6 +1,7 @@
-LIBRARY ADBFileDriver
+; LIBRARY директива удалена — MSBuild сам определяет имя по имени цели
 EXPORTS
     GetClassNames @1
     GetClassObject @2
     DestroyObject @3
     SetPlatformCapabilities @4
+    GetAttachType @5

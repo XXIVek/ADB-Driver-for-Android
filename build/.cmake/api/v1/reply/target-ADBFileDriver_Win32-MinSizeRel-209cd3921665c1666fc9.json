@@ -2,13 +2,13 @@
 	"artifacts" : 
 	[
 		{
-			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/RelWithDebInfo/ADBFileDriver_Win32.dll"
+			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/MinSizeRel/ADBFileDriver_Win32.dll"
 		},
 		{
-			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/RelWithDebInfo/ADBFileDriver_Win32.lib"
+			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/MinSizeRel/ADBFileDriver_Win32.lib"
 		},
 		{
-			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/RelWithDebInfo/ADBFileDriver_Win32.pdb"
+			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/MinSizeRel/ADBFileDriver_Win32.pdb"
 		}
 	],
 	"backtrace" : 1,
@@ -76,7 +76,7 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MD /Zi /O2 /Ob1 /DNDEBUG -std:c++17 -MD -Zi"
+					"fragment" : "/DWIN32 /D_WINDOWS /EHsc /O1 /Ob1 /DNDEBUG -std:c++17 -MD"
 				},
 				{
 					"backtrace" : 3,
@@ -140,7 +140,7 @@
 		"commandFragments" : 
 		[
 			{
-				"fragment" : "/machine:X86 /debug /INCREMENTAL",
+				"fragment" : "/machine:x64 /INCREMENTAL:NO",
 				"role" : "flags"
 			},
 			{

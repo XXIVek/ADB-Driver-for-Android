@@ -47,7 +47,8 @@ public:
     bool FindADB();
     std::wstring ExecuteADBCommand(const std::wstring& cmd);
     std::wstring ExecuteADBCommandToDevice(const std::wstring& cmd);
-    std::wstring WideToAnsi(const std::wstring& wstr);
+    // WideToAnsi удалена — не используется. Оставлена для обратной совместимости.
+    // Если нужна — реализуйте как WideToUTF8String.
     std::string GetDevicesJSON();
     bool UpdateStatus(const std::wstring& status);
 

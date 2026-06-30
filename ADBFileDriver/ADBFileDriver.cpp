@@ -157,6 +157,9 @@ void CADBFileDriver::setWStringToTVariant(tVariant* dest, const wchar_t* source)
         return;
     }
 
+    // ЗОЛОТОЕ ПРАВИЛО: Сначала инициализируем tVariant через tVarInit
+    tVarInit(dest);
+
     size_t len = wcslen(source) + 1;
     TV_VT(dest) = VTYPE_PWSTR;
 
@@ -405,7 +408,13 @@ long CADBFileDriver::FindProp(const WCHAR_T* wsPropName)
     ConvFromShortWchar(&propName, wsPropName);
 
     std::wstring wName(propName);
-    delete[] propName;
+    // Освобождаем память через m_pMemMgr если он доступен
+    if (m_pMemMgr) {
+        // ConvFromShortWchar выделяет через new, нужно освободить через delete
+        delete[] propName;
+    } else {
+        delete[] propName;
+    }
 
     for (int i = 0; i < 2; i++) {
         if (wcscmp(g_PropNamesEN[i], wName.c_str()) == 0) return i;
@@ -603,6 +612,7 @@ long CADBFileDriver::FindMethod(const WCHAR_T* wsMethodName)
     ConvFromShortWchar(&methodName, wsMethodName);
 
     std::wstring wName(methodName);
+    // Освобождаем память — ConvFromShortWchar использует new
     delete[] methodName;
 
     for (int i = 0; i < 5; i++) {
@@ -818,8 +828,8 @@ bool CADBFileDriver::Method_PushFile(tVariant* pvarRetValue, tVariant* paParams,
         std::wstring resultLowerW = resultW;
         std::transform(resultLowerW.begin(), resultLowerW.end(), resultLowerW.begin(), ::tolower);
 
-        if (resultLowerW.find(L"1 file pushed") != std::string::npos ||
-            resultLowerW.find(L"success") != std::string::npos) {
+        if (resultLowerW.find(L"1 file pushed") != std::wstring::npos ||
+            resultLowerW.find(L"success") != std::wstring::npos) {
             UpdateStatus(L"Файл выгружен: " + dstPath);
             TV_VT(pvarRetValue) = VTYPE_BOOL;
             TV_BOOL(pvarRetValue) = (VARIANT_BOOL)VARIANT_TRUE;
@@ -900,8 +910,8 @@ bool CADBFileDriver::Method_PullText(tVariant* pvarRetValue, tVariant* paParams,
         std::wstring resultLowerW = resultW;
         std::transform(resultLowerW.begin(), resultLowerW.end(), resultLowerW.begin(), ::tolower);
 
-        if (resultLowerW.find(L"1 file pulled") != std::string::npos ||
-            resultLowerW.find(L"success") != std::string::npos) {
+        if (resultLowerW.find(L"1 file pulled") != std::wstring::npos ||
+            resultLowerW.find(L"success") != std::wstring::npos) {
             // Читаем временный файл
             FILE* f = nullptr;
             if (_wfopen_s(&f, tempPath, L"rb") == 0 && f != nullptr) {
@@ -1049,17 +1059,26 @@ void CADBFileDriver::SetLocale(const WCHAR_T* loc)
 // Сигнатуры соответствуют объявленным в ComponentBase.h
 // ============================================================
 
+// ============================================================
+// Экспорт функций для 1С:Предприятие
+// Реализация экспортируемых функций (экспорт через DEF-файл)
+// ============================================================
+
 extern "C" {
 
 const WCHAR_T* GetClassNames()
 {
-    static WCHAR_T names[] = L"ADBFileDriver";
+    /* 1С ожидает список имён классов, разделённых \0, с двойным \0 в конце */
+    /* КРИТИЧНО: Двойной \0 в конце обязателен! 1С парсит строки до двойного \0. */
+    static WCHAR_T names[] = { L'A', L'D', L'B', L'F', L'i', L'l', L'e', L'D', L'r', L'i', L'v', L'e', L'r', L'\0', L'\0' };
     return names;
 }
 
 long GetClassObject(const WCHAR_T* clsName, IComponentBase** pIntf)
 {
-    if (_wcsicmp(clsName, L"ADBFileDriver") == 0) {
+    // Рабочий паттерн: НЕ проверяем имя класса, просто проверяем pIntf
+    // Это соответствует рабочему проекту innNative
+    if (!*pIntf) {
         *pIntf = new CADBFileDriver();
         return *pIntf ? 1 : 0;
     }
@@ -1082,8 +1101,6 @@ AppCapabilities SetPlatformCapabilities(const AppCapabilities capabilities)
     return eAppCapabilitiesLast;
 }
 
-// GetAttachType — тип подключения
-// eCanAttachAny = 0 — любое подключение
 long GetAttachType()
 {
     return 0;

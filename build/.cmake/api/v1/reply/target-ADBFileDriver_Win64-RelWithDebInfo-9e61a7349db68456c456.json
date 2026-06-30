@@ -2,13 +2,13 @@
 	"artifacts" : 
 	[
 		{
-			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/Release/ADBFileDriver_Win32.dll"
+			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win64/RelWithDebInfo/ADBFileDriver_Win64.dll"
 		},
 		{
-			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/Release/ADBFileDriver_Win32.lib"
+			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win64/RelWithDebInfo/ADBFileDriver_Win64.lib"
 		},
 		{
-			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win32/Release/ADBFileDriver_Win32.pdb"
+			"path" : "J:/Visual studio prog/ADB Driver for Android/1C/Release/Win64/RelWithDebInfo/ADBFileDriver_Win64.pdb"
 		}
 	],
 	"backtrace" : 1,
@@ -35,19 +35,19 @@
 			{
 				"command" : 0,
 				"file" : 0,
-				"line" : 40,
+				"line" : 68,
 				"parent" : 0
 			},
 			{
 				"command" : 1,
 				"file" : 0,
-				"line" : 58,
+				"line" : 86,
 				"parent" : 0
 			},
 			{
 				"command" : 2,
 				"file" : 0,
-				"line" : 55,
+				"line" : 83,
 				"parent" : 0
 			},
 			{
@@ -65,7 +65,7 @@
 			{
 				"command" : 5,
 				"file" : 0,
-				"line" : 43,
+				"line" : 71,
 				"parent" : 0
 			}
 		]
@@ -76,7 +76,7 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MD /O2 /Ob2 /DNDEBUG -std:c++17 -MD"
+					"fragment" : "/DWIN32 /D_WINDOWS /EHsc /O2 /Ob1 /DNDEBUG -std:c++17 -MD -Zi"
 				},
 				{
 					"backtrace" : 3,
@@ -90,7 +90,7 @@
 			"defines" : 
 			[
 				{
-					"define" : "ADBFileDriver_Win32_EXPORTS"
+					"define" : "ADBFileDriver_Win64_EXPORTS"
 				},
 				{
 					"backtrace" : 4,
@@ -134,13 +134,13 @@
 			"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df"
 		}
 	],
-	"id" : "ADBFileDriver_Win32::@6890427a1f51a3e7e1df",
+	"id" : "ADBFileDriver_Win64::@6890427a1f51a3e7e1df",
 	"link" : 
 	{
 		"commandFragments" : 
 		[
 			{
-				"fragment" : "/machine:X86 /INCREMENTAL:NO",
+				"fragment" : "/machine:x64 /debug /INCREMENTAL",
 				"role" : "flags"
 			},
 			{
@@ -174,8 +174,8 @@
 		],
 		"language" : "CXX"
 	},
-	"name" : "ADBFileDriver_Win32",
-	"nameOnDisk" : "ADBFileDriver_Win32.dll",
+	"name" : "ADBFileDriver_Win64",
+	"nameOnDisk" : "ADBFileDriver_Win64.dll",
 	"paths" : 
 	{
 		"build" : ".",
